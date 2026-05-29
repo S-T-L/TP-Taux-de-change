@@ -8,8 +8,7 @@
             <div class="saisie-champ" :class="{ 'champ-erreur': erreurMontant }">
                 <input id="montant-xpf-compo" type="number" v-model.number="xpfSaisi" min="0" placeholder="Ex : 1000" />
                 <select class="devise-select" v-model="deviseSource">
-                    <option value="XPF">XPF</option>
-                    <option v-for="d in devises" :key="d.code" :value="d.code">{{ d.code }}</option>
+                    <option v-for="d in devises" :key="d.code" :value="d.code">{{ d.code }} – {{ d.nom }}</option>
                 </select>
             </div>
             <span v-if="erreurMontant" class="message-erreur">{{ erreurMontant }}</span>
@@ -20,7 +19,7 @@
         </p>
 
         <div class="grid">
-            <div class="card" :class="{ 'card--disabled': devise.estSource }" v-for="devise in devisesAvecFlag"
+            <div class="card" v-for="devise in devisesAvecFlag"
                 :key="devise.code">
                 <img :src="devise.flag" :alt="devise.nom" />
                 <div class="info">
@@ -43,6 +42,7 @@ const derniereMiseAJour = ref(null)
 const intervalId = ref(null)
 
 const devises = ref([
+    { code: 'XPF', nom: 'Franc Pacifique', pays: 'pf', taux: 1 },
     { code: 'AUD', nom: 'Dollar australien', pays: 'au', taux: null },
     { code: 'NZD', nom: 'Dollar néo-zélandais', pays: 'nz', taux: null },
     { code: 'CAD', nom: 'Dollar canadien', pays: 'ca', taux: null },
@@ -82,10 +82,11 @@ const devisesAvecFlag = computed(() => {
     const result = []
 
     devises.value.forEach(d => {
-        const estSource = d.code === deviseSource.value
+        if (d.code === deviseSource.value) return
+
         let montantConverti
 
-        if (erreurMontant.value || estSource) {
+        if (erreurMontant.value) {
             montantConverti = '—'
         } else if (d.taux !== null) {
             montantConverti = (xpfSaisi.value * d.taux / tauxSource).toFixed(2)
@@ -99,8 +100,7 @@ const devisesAvecFlag = computed(() => {
             pays: d.pays,
             taux: d.taux,
             flag: `https://flagcdn.com/w40/${d.pays}.png`,
-            montantConverti: montantConverti,
-            estSource: estSource
+            montantConverti: montantConverti
         })
     })
 
@@ -111,10 +111,9 @@ async function chargerTaux() {
     try {
         const data = await fetchLatestRates('XPF')
         const rates = data.conversion_rates
-        devises.value = devises.value.map(d => ({
-            ...d,
-            taux: rates[d.code]
-        }))
+        devises.value.forEach(d => {
+            if (d.code !== 'XPF') d.taux = rates[d.code]
+        })
         derniereMiseAJour.value = new Date().toLocaleTimeString('fr-FR')
     } catch (error) {
         console.warn('Impossible de charger les taux :', error.message)
